@@ -1,10 +1,15 @@
+import keyboard
 import pyautogui, tkinter, threading
-from keyboard import is_pressed
+from keyboard import is_pressed, wait, add_hotkey
 from random import choice
 import sounddevice as sd
 import soundfile as sf
 
-data, samplerate = sf.read('success.mp3')
+success_sound, samplerate1 = sf.read('success.mp3')
+fail_sound, samplerate2 = sf.read('fail.mp3')
+
+sound = success_sound
+samplerate = samplerate1
 
 win = tkinter.Tk()
 win.geometry('500x370')
@@ -24,13 +29,25 @@ tk_search_var = tkinter.IntVar(win, 1)
 sleep_seconds = tkinter.IntVar(win, 5)
 in_search = False
 searching = False
+stop_flag = False
+
+add_hotkey('q', lambda: None)
+def listen_for_quit():
+    global stop_flag, sound, samplerate
+    wait('q')
+    stop_flag = True
+    sound, samplerate = fail_sound, samplerate2
+    print("Q pressed! Stopping...")
+
 
 def random_sentence_search(button):
+    global stop_flag, sound, samplerate
     button.config(state="disabled", text="Working")
+    listener_thread = threading.Thread(target=listen_for_quit, daemon=True)
+    listener_thread.start()
     for i in range(0, tk_search_var.get()):
         print(threading.current_thread().name)
-        if is_pressed('q'):
-            print("trying to break")
+        if stop_flag:
             break
         pyautogui.sleep(sleep_seconds.get()/2)
         pyautogui.moveTo(move_to_pos)
@@ -44,9 +61,11 @@ def random_sentence_search(button):
         pyautogui.typewrite(sentence)
         pyautogui.press('enter')
         pyautogui.sleep(sleep_seconds.get()/2)
-    sd.play(data, samplerate)
+    sd.play(sound, samplerate)
     sd.wait()
     button.config(state="normal", text="Start Macro")
+    stop_flag = False
+    sound, samplerate = success_sound, samplerate1
 
 def set_search_pos(button):
     global move_to_pos, searching
